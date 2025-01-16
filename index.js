@@ -16,8 +16,6 @@ app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.qgrba.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-
-
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
@@ -29,31 +27,39 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
+    const db = client.db("newsOrbit-project");
+    const publishersCollection = db.collection("publishers");
+    const usersCollection = db.collection("users");
+    const articlesCollection = db.collection("articles");
 
-    const db = client.db('newsOrbit-project')
-    const publishersCollection = db.collection('publishers')
-    const usersCollection = db.collection('users')
-
-    // FIXME: Publisher 
+    // FIXME: Publisher
 
     // post add Publisher
-    app.post('/add-publisher', async(req, res) => {
+    app.post("/add-publisher", async (req, res) => {
       const publisher = req.body;
-      const result = await publishersCollection.insertOne(publisher)
-      res.send(result)
-    })
-
+      const result = await publishersCollection.insertOne(publisher);
+      res.send(result);
+    });
 
     // get publisher data
-    app.get('/publisher', async(req, res) => {
-      const result = await publishersCollection.find().toArray()
-      res.send()
-    })
+    app.get("/publisher", async (req, res) => {
+      const result = await publishersCollection.find().toArray();
+      res.send(result);
+    });
 
+    // FIXME: Articles
 
+    app.post("/add-articles", async (req, res) => {
+      const articles = req.body;
+      const result = await articlesCollection.insertOne(articles);
+      res.send(result);
+    });
 
-
-
+    // get publisher data
+    app.get("/articles", async (req, res) => {
+      const result = await articlesCollection.find().toArray();
+      res.send(result);
+    });
 
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
