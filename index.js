@@ -31,6 +31,7 @@ async function run() {
     const publishersCollection = db.collection("publishers");
     const usersCollection = db.collection("users");
     const articlesCollection = db.collection("articles");
+    const adminApprovedCollection = db.collection("approved");
 
     // FIXME: Publisher
 
@@ -49,6 +50,7 @@ async function run() {
 
     // FIXME: Articles
 
+    // post add articles
     app.post("/add-articles", async (req, res) => {
       const articles = req.body;
       const result = await articlesCollection.insertOne(articles);
@@ -60,6 +62,28 @@ async function run() {
       const result = await articlesCollection.find().toArray();
       res.send(result);
     });
+
+
+
+    // FIXME: admin approved articles
+
+    app.post("/admin-approved", async (req, res) => {
+      const approvedArticles = req.body;
+      const result = await adminApprovedCollection.insertOne(approvedArticles);
+      res.send(result);
+    });
+
+
+
+
+
+
+
+
+
+
+
+
 
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
