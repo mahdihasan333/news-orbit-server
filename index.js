@@ -29,7 +29,6 @@ async function run() {
   try {
     const db = client.db("newsOrbit-project");
     const publishersCollection = db.collection("publishers");
-    const usersCollection = db.collection("users");
     const articlesCollection = db.collection("articles");
     const adminApprovedCollection = db.collection("approved");
 
@@ -67,11 +66,21 @@ async function run() {
 
     // FIXME: admin approved articles
 
+    // post admin approved data
     app.post("/admin-approved", async (req, res) => {
       const approvedArticles = req.body;
       const result = await adminApprovedCollection.insertOne(approvedArticles);
       res.send(result);
     });
+
+
+    // get admin approved data
+    app.get("/approved-data", async (req, res) => {
+      const result = await adminApprovedCollection.find().toArray();
+      res.send(result);
+    });
+
+
 
 
 
