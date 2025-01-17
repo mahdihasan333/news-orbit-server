@@ -102,6 +102,16 @@ async function run() {
       res.send(result);
     });
 
+
+     // articles delete api
+     app.delete("/articles/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await articlesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+
     // FIXME: admin approved articles
     // post admin approved data
     app.post("/admin-approved", async (req, res) => {
