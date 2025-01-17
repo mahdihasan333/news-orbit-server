@@ -62,6 +62,18 @@ async function run() {
       });
     };
 
+    // admin middleware
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     // FIXME: Publisher
     // post add Publisher
     app.post("/add-publisher", async (req, res) => {
@@ -71,7 +83,7 @@ async function run() {
     });
 
     // get publisher data
-    app.get("/publisher", async (req, res) => {
+    app.get("/publisher", verifyToken, async (req, res) => {
       const result = await publishersCollection.find().toArray();
       res.send(result);
     });
@@ -85,7 +97,7 @@ async function run() {
     });
 
     // get articles data
-    app.get("/articles", async (req, res) => {
+    app.get("/articles", verifyToken, verifyAdmin, async (req, res) => {
       const result = await articlesCollection.find().toArray();
       res.send(result);
     });
@@ -127,7 +139,7 @@ async function run() {
     });
 
     // get user api
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
@@ -148,7 +160,7 @@ async function run() {
     });
 
     // user delete api
-    app.delete("/users/:id", async (req, res) => {
+    app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await userCollection.deleteOne(query);
@@ -156,7 +168,7 @@ async function run() {
     });
 
     // user role
-    app.patch("/users/admin/:id", async (req, res) => {
+    app.patch("/users/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
