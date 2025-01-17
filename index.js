@@ -28,6 +28,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const db = client.db("newsOrbit-project");
+    const userCollection = db.collection("users");
     const publishersCollection = db.collection("publishers");
     const articlesCollection = db.collection("articles");
     const adminApprovedCollection = db.collection("approved");
@@ -85,6 +86,15 @@ async function run() {
       const id = req.params.id
       const query = {_id: new ObjectId(id)}
       const result = await adminApprovedCollection.findOne(query)
+      res.send(result)
+    })
+
+
+
+    // FIXME: user relative api
+    app.post('/users', async(req, res) => {
+      const user = req.body;
+      const result = await userCollection.insertOne(user)
       res.send(result)
     })
 
