@@ -8,7 +8,7 @@ const app = express();
 
 // middleware
 const corsOptions = {
-  origin: ["http://localhost:5173"],
+  origin: ["http://localhost:5173", 'https://news-orbit-4f192.web.app'],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -34,6 +34,7 @@ async function run() {
     const articlesCollection = db.collection("articles");
     const adminApprovedCollection = db.collection("approved");
     const adminArticlesDecline = db.collection("decline");
+    const premiumCollection = db.collection("premiums");
 
     // FIXME:JWT TOKEN
     // jwt related api
@@ -130,6 +131,33 @@ async function run() {
       const result = await articlesCollection.deleteOne(query);
       res.send(result);
     });
+
+
+
+    // FIXME: PREMIUM COLLECTION
+    app.post("/premium", async (req, res) => {
+      const premium = req.body;
+      const result = await premiumCollection.insertOne(premium);
+      res.send(result);
+    });
+
+    // get publisher data
+    app.get("/premium", verifyToken, async (req, res) => {
+      const result = await premiumCollection.find().toArray();
+      res.send(result);
+    });
+
+
+    // get publisher data to id
+    app.get("/premium/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await premiumCollection.findOne(query);
+      res.send(result);
+    });
+
+
+
 
 
 
