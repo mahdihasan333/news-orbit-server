@@ -33,6 +33,7 @@ async function run() {
     const publishersCollection = db.collection("publishers");
     const articlesCollection = db.collection("articles");
     const adminApprovedCollection = db.collection("approved");
+    const adminArticlesDecline = db.collection("decline");
 
     // FIXME:JWT TOKEN
     // jwt related api
@@ -103,11 +104,52 @@ async function run() {
     });
 
 
+    // get articles data to email
+    app.get('/user-articles/:email', async(req, res) => {
+      const email = req.params.email
+      const query = { 'userData.email': email };
+      const result = await articlesCollection.find(query).toArray()
+      res.send(result)
+    })
+
+
+
+    // get user approved data to id
+    app.get("/userapproved/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await articlesCollection.findOne(query);
+      res.send(result);
+    });
+
+
+    // articles user delete api
+    app.delete("/userDataDelete/:id", verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await articlesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+
+
+
+
+
+
      // articles delete api
      app.delete("/articles/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await articlesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+
+    // articles decline reason box
+    app.post("/articles-decline", async (req, res) => {
+      const articles = req.body;
+      const result = await adminArticlesDecline.insertOne(articles);
       res.send(result);
     });
 
@@ -127,14 +169,14 @@ async function run() {
     });
 
     // get admin approved data to id
-    app.get("/approved/:id", verifyToken, async (req, res) => {
+    app.get("/approved/:id",  async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await adminApprovedCollection.findOne(query);
       res.send(result);
     });
 
-    // TODO: user email get route
+   
 
     // FIXME: user relative api
     app.post("/users", async (req, res) => {
