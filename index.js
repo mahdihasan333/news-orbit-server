@@ -3,12 +3,13 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 const app = express();
 
 // middleware
 const corsOptions = {
-  origin: ["http://localhost:5173", 'https://news-orbit-4f192.web.app'],
+  origin: ["http://localhost:5173", "https://news-orbit-4f192.web.app"],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -35,6 +36,7 @@ async function run() {
     const adminApprovedCollection = db.collection("approved");
     const adminArticlesDecline = db.collection("decline");
     const premiumCollection = db.collection("premiums");
+    const paymentCollection = db.collection("payments");
 
     // FIXME:JWT TOKEN
     // jwt related api
@@ -49,8 +51,6 @@ async function run() {
     // FIXME: middleware
     // middleware
     const verifyToken = (req, res, next) => {
-      console.log("inside verify token", req.headers.authorization);
-
       if (!req.headers.authorization) {
         return res.status(401).send({ message: "unauthorized access" });
       }
@@ -104,16 +104,13 @@ async function run() {
       res.send(result);
     });
 
-
     // get articles data to email
-    app.get('/user-articles/:email', async(req, res) => {
-      const email = req.params.email
-      const query = { 'userData.email': email };
-      const result = await articlesCollection.find(query).toArray()
-      res.send(result)
-    })
-
-
+    app.get("/user-articles/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { "userData.email": email };
+      const result = await articlesCollection.find(query).toArray();
+      res.send(result);
+    });
 
     // get user approved data to id
     app.get("/userapproved/:id", verifyToken, async (req, res) => {
@@ -123,16 +120,18 @@ async function run() {
       res.send(result);
     });
 
-
     // articles user delete api
-    app.delete("/userDataDelete/:id", verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await articlesCollection.deleteOne(query);
-      res.send(result);
-    });
-
-
+    app.delete(
+      "/userDataDelete/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await articlesCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     // FIXME: PREMIUM COLLECTION
     app.post("/premium", async (req, res) => {
@@ -141,14 +140,13 @@ async function run() {
       res.send(result);
     });
 
-    // get publisher data
+    // get premium data
     app.get("/premium", verifyToken, async (req, res) => {
       const result = await premiumCollection.find().toArray();
       res.send(result);
     });
 
-
-    // get publisher data to id
+    // get premium data to id
     app.get("/premium/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -156,23 +154,13 @@ async function run() {
       res.send(result);
     });
 
-
-
-
-
-
-
-
-
-
-     // articles delete api
-     app.delete("/articles/:id", verifyToken, verifyAdmin, async (req, res) => {
+    // articles delete api
+    app.delete("/articles/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await articlesCollection.deleteOne(query);
       res.send(result);
     });
-
 
     // articles decline reason box
     app.post("/articles-decline", async (req, res) => {
@@ -180,7 +168,6 @@ async function run() {
       const result = await adminArticlesDecline.insertOne(articles);
       res.send(result);
     });
-
 
     // FIXME: admin approved articles
     // post admin approved data
@@ -197,14 +184,12 @@ async function run() {
     });
 
     // get admin approved data to id
-    app.get("/approved/:id",  async (req, res) => {
+    app.get("/approved/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await adminApprovedCollection.findOne(query);
       res.send(result);
     });
-
-   
 
     // FIXME: user relative api
     app.post("/users", async (req, res) => {
@@ -248,17 +233,51 @@ async function run() {
     });
 
     // user role
-    app.patch("/users/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          role: "admin",
-        },
-      };
-      const result = await userCollection.updateOne(filter, updatedDoc);
-      res.send(result);
+    app.patch(
+      "/users/admin/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            role: "admin",
+          },
+        };
+        const result = await userCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      }
+    );
+
+    // FIXME: PAYMENT API
+    // create payment intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100)
+      console.log(amount, 'amount inside the intent')
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      })
+      res.send({ clientSecret: paymentIntent.client_secret });
     });
+
+
+
+    // PAYMENT POST
+    app.post('/payments', async(req, res) => {
+      const payment = req.body;
+      console.log( 'payment', payment)
+      const paymentResult = await paymentCollection.insertOne(payment)
+      console.log( 'paymentIntent', paymentResult)
+      res.send({paymentResult})
+
+    })
+
+
+    //  PAYMENT GET ROUTE
 
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
