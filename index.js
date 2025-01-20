@@ -40,24 +40,59 @@ async function run() {
 
     // FIXME:JWT TOKEN
     // jwt related api
+    // app.post("/jwt", async (req, res) => {
+    //   const user = req.body;
+    //   const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+    //     expiresIn: "365d",
+    //   });
+    //   res.send({ token });
+    // });
+
     app.post("/jwt", async (req, res) => {
       const user = req.body;
+      if (!user?.email) {
+        return res.status(400).send({ message: "Email is required" });
+      }
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "1h",
+        expiresIn: "365d",
+      });
+      res.send({ token });
+    });
+
+    // premium jwt
+    app.post("/premiumJwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1m",
       });
       res.send({ token });
     });
 
     // FIXME: middleware
     // middleware
+    // const verifyToken = (req, res, next) => {
+    //   if (!req.headers.authorization) {
+    //     return res.status(401).send({ message: "unauthorized access" });
+    //   }
+    //   const token = req.headers.authorization.split(" ")[1];
+    //   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    //     if (err) {
+    //       return res.status(401).send({ message: "unauthorized access" });
+    //     }
+    //     req.decoded = decoded;
+    //     next();
+    //   });
+    // };
+
     const verifyToken = (req, res, next) => {
-      if (!req.headers.authorization) {
-        return res.status(401).send({ message: "unauthorized access" });
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).send({ message: "Unauthorized access" });
       }
-      const token = req.headers.authorization.split(" ")[1];
+      const token = authHeader.split(" ")[1];
       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
         if (err) {
-          return res.status(401).send({ message: "unauthorized access" });
+          return res.status(401).send({ message: "Unauthorized access" });
         }
         req.decoded = decoded;
         next();
@@ -75,6 +110,22 @@ async function run() {
       }
       next();
     };
+
+    // // Premium User middleware
+    // const verifyPremium = async (req, res, next) => {
+    //   const authHeader = req.headers.authorization;
+    //   if (!authHeader) {
+    //     return res.status(401).send({ message: "Unauthorized access" });
+    //   }
+    //   const token = authHeader.split(" ")[1];
+    //   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    //     if (err) {
+    //       return res.status(401).send({ message: "Unauthorized access" });
+    //     }
+    //     req.decoded = decoded;
+    //     next();
+    //   });
+    // };
 
     // FIXME: Publisher
     // post add Publisher
@@ -99,7 +150,7 @@ async function run() {
     });
 
     // get articles data
-    app.get("/articles", verifyToken, verifyAdmin, async (req, res) => {
+    app.get("/articles", verifyToken, async (req, res) => {
       const result = await articlesCollection.find().toArray();
       res.send(result);
     });
@@ -113,10 +164,28 @@ async function run() {
     });
 
     // get user approved data to id
-    app.get("/userapproved/:id", verifyToken, async (req, res) => {
+    app.get("/userapproved/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await articlesCollection.findOne(query);
+      res.send(result);
+    });
+
+    // update user articles
+    app.patch("/update/:id", async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          category: item.category,
+          description: item.description,
+          title: item.title,
+          tags: item.tags,
+          publisher: item.publisher,
+        },
+      };
+      const result = await articlesCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
 
@@ -179,9 +248,20 @@ async function run() {
 
     // get admin approved data
     app.get("/approved-data", async (req, res) => {
-      const result = await adminApprovedCollection.find().toArray();
+      const filter = req.query.filter;
+      const search = req.query.search || "";
+      let query = { title: { $regex: search, $options: "i" } };
+      if (filter) query.publisher = filter;
+      const result = await adminApprovedCollection.find(query).toArray();
       res.send(result);
     });
+
+
+    // data for home
+    app.get('/slider', async(req, res) => {
+      const result = await adminApprovedCollection.find().limit(6).toArray();
+      res.send(result)
+    })
 
     // get admin approved data to id
     app.get("/approved/:id", async (req, res) => {
@@ -210,11 +290,9 @@ async function run() {
     });
 
     // admin check
-    app.get("/users/admin/:email", verifyToken, async (req, res) => {
+    app.get("/users/admin/:email", async (req, res) => {
       const email = req.params.email;
-      if (email !== req.decoded.email) {
-        return res.status(403).send({ message: "forbidden access" });
-      }
+
       const query = { email: email };
       const user = await userCollection.findOne(query);
       let admin = false;
@@ -250,39 +328,77 @@ async function run() {
       }
     );
 
+    // premium role
+    // app.patch("/users/premium/:email", verifyToken, async (req, res) => {
+    //   const email = req.body.email;
+    //   if(email !== req.decoded.email) {
+    //     return res.status(403).send({ message: "forbidden access" });
+    //   }
+    //   const query = {email: email}
+    //   const user = await userCollection.findOne(query)
+    //   let premium = false
+    //   if(user) {
+    //     premium = user?.premium = 'Yes'
+    //   }
+
+    //   res.send({premium});
+    // });
+
+    // update user data
+    app.patch("/update-user", async (req, res) => {
+      const user = req.body;
+      const email = req.params.email;
+      console.log("email", email);
+      const filter = { email };
+      const updatedDoc = {
+        $set: {
+          name: user.name,
+          image: user.imageUrl,
+        },
+      };
+      const result = await userCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
+
     // FIXME: PAYMENT API
     // create payment intent
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
-      const amount = parseInt(price * 100)
-      console.log(amount, 'amount inside the intent')
+      const amount = parseInt(price * 100);
+      console.log(amount, "amount inside the intent");
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
-        currency: 'usd',
-        payment_method_types: ['card']
-      })
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
       res.send({ clientSecret: paymentIntent.client_secret });
     });
 
-
-
     // PAYMENT POST
-    app.post('/payments', async(req, res) => {
+    app.post("/payments", async (req, res) => {
       const payment = req.body;
-      console.log( 'payment', payment)
-      const paymentResult = await paymentCollection.insertOne(payment)
-      console.log( 'paymentIntent', paymentResult)
-      res.send({paymentResult})
-
-    })
-
+      console.log("payment", payment);
+      const paymentResult = await paymentCollection.insertOne(payment);
+      console.log("paymentIntent", paymentResult);
+      res.send({ paymentResult });
+    });
 
     //  PAYMENT GET ROUTE
+    app.get("/payments", verifyToken, async (req, res) => {
+      const result = await paymentCollection.find().toArray();
+      res.send(result);
+    });
+
+    // admin stat
+    app.get("/admin-stat", verifyToken, async (req, res) => {
+      const totalUser = await userCollection.estimatedDocumentCount();
+      res.send({totalUser});
+    });
 
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
