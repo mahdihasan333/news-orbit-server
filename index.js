@@ -136,7 +136,7 @@ async function run() {
     });
 
     // get publisher data
-    app.get("/publisher", verifyToken, async (req, res) => {
+    app.get("/publisher", async (req, res) => {
       const result = await publishersCollection.find().toArray();
       res.send(result);
     });
@@ -250,18 +250,22 @@ async function run() {
     app.get("/approved-data", async (req, res) => {
       const filter = req.query.filter;
       const search = req.query.search || "";
+      const tag = req.query.tag || "";
+
       let query = { title: { $regex: search, $options: "i" } };
+
       if (filter) query.publisher = filter;
+      if (tag) query.tags = { $in: [tag] }; // Filter by tag
+
       const result = await adminApprovedCollection.find(query).toArray();
       res.send(result);
     });
 
-
     // data for home
-    app.get('/slider', async(req, res) => {
+    app.get("/slider", async (req, res) => {
       const result = await adminApprovedCollection.find().limit(6).toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     // get admin approved data to id
     app.get("/approved/:id", async (req, res) => {
@@ -392,7 +396,7 @@ async function run() {
     // admin stat
     app.get("/admin-stat", verifyToken, async (req, res) => {
       const totalUser = await userCollection.estimatedDocumentCount();
-      res.send({totalUser});
+      res.send({ totalUser });
     });
 
     // Connect the client to the server	(optional starting in v4.7)
