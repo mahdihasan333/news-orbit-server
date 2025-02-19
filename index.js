@@ -399,6 +399,15 @@ async function run() {
       res.send({ totalUser });
     });
 
+    // dashboard stats
+    app.get("/dashboard-stats", verifyToken, async (req, res) => {
+      const totalUsers = await userCollection.estimatedDocumentCount();
+      const totalArticles = await articlesCollection.estimatedDocumentCount();
+      const totalPremiumArticles = await premiumCollection.countDocuments();
+      
+      res.send({ totalUsers, totalArticles, totalPremiumArticles });
+    });
+
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     // Send a ping to confirm a successful connection
